@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customizable GIF, Clock, and Date</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        #uploadContainer {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+        }
+        #gifContainer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+        #gifContainer img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .box {
+            position: fixed;
+            z-index: 10;
+            background-color: white;
+            padding: 10px;
+            cursor: move;
+            font-size: 2.3rem; /* Increased by 1.2 */
+            font-weight: 600;
+            border-radius: 5px;
+            border: none;
+            user-select: none;
+        }
+        #clockBox {
+            top: 50px;
+            left: 10px;
+        }
+        #dateBox {
+            top: 100px;
+            left: 10px;
+        }
+        @media (max-width: 600px) {
+            .box {
+                font-size: 1.4rem; /* Adjusted for mobile */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="uploadContainer">
+        <input type="file" id="uploadGif" accept="image/gif">
+    </div>
+
+    <div id="gifContainer">
+        <img id="uploadedGif" src="" alt="Uploaded GIF">
+    </div>
+
+    <div id="clockBox" class="box">
+        <span id="clock"></span>
+        <span id="ampm"></span>
+    </div>
+
+    <div id="dateBox" class="box">
+        <span id="date"></span>
+    </div>
+
+    <script>
+        // Function to get Chicago time considering Daylight Saving Time
+        function getChicagoTime() {
+            const now = new Date();
+            // Get the UTC time and convert it to Chicago time
+            const offset = now.getTimezoneOffset() / 60; // Offset in hours
+            const chicagoOffset = -5; // Chicago is UTC-5 during standard time
+            return new Date(now.getTime() + (chicagoOffset + offset) * 60 * 60 * 1000);
+        }
+
+        // Live clock and AM/PM function
+        function updateClock() {
+            const now = getChicagoTime();
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            hours = hours % 12;
+            hours = hours ? hours : 12; // Show "12" when the hour is 0 (12 AM/PM)
+
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+            document.getElementById('ampm').textContent = ` ${ampm}`;
+        }
+
+        setInterval(updateClock, 1000);
+
+        // Date function (MM/DD/YYYY format)
+        function updateDate() {
+            const now = getChicagoTime();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const year = now.getFullYear();
+            document.getElementById('date').textContent = `${month}/${day}/${year}`;
+        }
+
+        updateDate(); // Update date on load
+
+        // GIF upload and display
+        document.getElementById('uploadGif').addEventListener('change', function (e) {
+            const gifFile = e.target.files[0];
+            if (gifFile) {
+                const gifURL = URL.createObjectURL(gifFile);
+                const gifImage = document.getElementById('uploadedGif');
+                gifImage.src = gifURL;
+                document.getElementById('gifContainer').style.display = 'block';
+            }
+        });
+
+        // Drag functionality for clock and date boxes (Desktop and Mobile)
+        function makeDraggable(element) {
+            let offsetX, offsetY, lastX, lastY;
+
+            const dragMouseDown = (event) => {
+                event.preventDefault();
+                lastX = event.clientX;
+                lastY = event.clientY;
+                offsetX = event.clientX - element.getBoundingClientRect().left;
+                offsetY = event.clientY - element.getBoundingClientRect().top;
+
+                document.onmousemove = dragElement;
+                document.onmouseup = stopDragging;
+            };
+
+            const dragElement = (event) => {
+                event.preventDefault();
+                const deltaX = event.clientX - lastX;
+                const deltaY = event.clientY - lastY;
+                lastX = event.clientX;
+                lastY = event.clientY;
+                element.style.left = `${element.offsetLeft + deltaX}px`;
+                element.style.top = `${element.offsetTop + deltaY}px`;
+            };
+
+            const stopDragging = () => {
+                document.onmousemove = null;
+                document.onmouseup = null;
+            };
+
+            // Mobile touch functionality
+            const dragTouchStart = (event) => {
+                lastX = event.touches[0].clientX;
+                lastY = event.touches[0].clientY;
+                offsetX = event.touches[0].clientX - element.getBoundingClientRect().left;
+                offsetY = event.touches[0].clientY - element.getBoundingClientRect().top;
+
+                document.ontouchmove = dragTouchMove;
+                document.ontouchend = stopTouchDragging;
+            };
+
+            const dragTouchMove = (event) => {
+                const deltaX = event.touches[0].clientX - lastX;
+                const deltaY = event.touches[0].clientY - lastY;
+                lastX = event.touches[0].clientX;
+                lastY = event.touches[0].clientY;
+                element.style.left = `${element.offsetLeft + deltaX}px`;
+                element.style.top = `${element.offsetTop + deltaY}px`;
+            };
+
+            const stopTouchDragging = () => {
+                document.ontouchmove = null;
+                document.ontouchend = null;
+            };
+
+            // Add both desktop and mobile event listeners
+            element.onmousedown = dragMouseDown;
+            element.ontouchstart = dragTouchStart;
+        }
+
+        // Apply draggable function to the clock and date boxes
+        makeDraggable(document.getElementById('clockBox'));
+        makeDraggable(document.getElementById('dateBox'));
+
+    </script>
+
+</body>
+</html>
